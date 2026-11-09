@@ -7,9 +7,12 @@ Built with Kotlin and Jetpack Compose (Material 3). It uses only AndroidX/Jetpac
 ## Features
 
 - Pick a photo with the system Photo Picker (no storage permission needed)
-- Crop with a draggable rectangle (corner handles resize, drag inside to move)
-- Adjust brightness, contrast and saturation with live preview
-- Save the result as JPEG to `Pictures/PhotoCrop`
+- Three tabs:
+  - **Crop** – draggable rectangle (corner handles resize, drag inside to move); the **Crop** button applies it
+  - **Adjust** – brightness, contrast and saturation sliders
+  - **Curves** – RGB tone curves. Pick All or any of R/G/B, tap to add a point, drag to shape, double-tap a point to remove it
+- Live preview while dragging; hold **Hold: original** to see the image without color edits
+- **Cancel** discards the photo and all edits; **Save** writes a JPEG to `Pictures/PhotoCrop`
 
 ## Building
 

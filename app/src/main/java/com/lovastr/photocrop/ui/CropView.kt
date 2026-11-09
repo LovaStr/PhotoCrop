@@ -4,7 +4,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -28,12 +30,16 @@ private enum class Drag { TopLeft, TopRight, BottomLeft, BottomRight, Move }
 
 private const val MIN_SIZE = 0.1f
 
-/** Image with a draggable crop rectangle (corner handles resize, dragging inside moves). */
+/**
+ * Shows the image. When [showCrop] is true a draggable crop rectangle is overlaid
+ * (corner handles resize, dragging inside moves). [colorMatrix] null means "no color filter".
+ */
 @Composable
 fun CropView(
     image: ImageBitmap,
     crop: NormRect,
-    colorMatrix: FloatArray,
+    colorMatrix: FloatArray?,
+    showCrop: Boolean,
     onCropChange: (NormRect) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -42,29 +48,39 @@ fun CropView(
     val touchRadius = with(LocalDensity.current) { 40.dp.toPx() }
     val handleRadius = with(LocalDensity.current) { 8.dp.toPx() }
     val strokePx = with(LocalDensity.current) { 2.dp.toPx() }
+    // Margin around the image so corner handles (and their touch areas) aren't cut off at the image edge.
+    val pad = with(LocalDensity.current) { 24.dp.toPx() }
 
-    Canvas(
-        modifier = modifier
-            .aspectRatio(image.width.toFloat() / image.height)
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    val down = awaitFirstDown()
-                    val w = size.width.toFloat()
-                    val h = size.height.toFloat()
-                    val mode = hitTest(down.position, currentCrop, w, h, touchRadius) ?: return@awaitEachGesture
-                    drag(down.id) { change: PointerInputChange ->
-                        val d = change.positionChange()
-                        currentOnChange(applyDrag(currentCrop, mode, d.x / w, d.y / h))
-                        change.consume()
-                    }
+    // The outer box receives touches (including those in the margin); the canvas inside is the image.
+    Box(
+        modifier = modifier.pointerInput(showCrop) {
+            if (!showCrop) return@pointerInput
+            awaitEachGesture {
+                val down = awaitFirstDown()
+                val w = size.width - 2 * pad
+                val h = size.height - 2 * pad
+                val local = down.position - Offset(pad, pad)
+                val mode = hitTest(local, currentCrop, w, h, touchRadius) ?: return@awaitEachGesture
+                drag(down.id) { change: PointerInputChange ->
+                    val d = change.positionChange()
+                    currentOnChange(applyDrag(currentCrop, mode, d.x / w, d.y / h))
+                    change.consume()
                 }
-            },
+            }
+        },
+    ) {
+    Canvas(
+        modifier = Modifier
+            .padding(with(LocalDensity.current) { pad.toDp() })
+            .aspectRatio(image.width.toFloat() / image.height),
     ) {
         drawImage(
             image = image,
             dstSize = IntSize(size.width.toInt(), size.height.toInt()),
-            colorFilter = ColorFilter.colorMatrix(ColorMatrix(colorMatrix)),
+            colorFilter = colorMatrix?.let { ColorFilter.colorMatrix(ColorMatrix(it)) },
         )
+
+        if (!showCrop) return@Canvas
 
         val l = crop.left * size.width
         val t = crop.top * size.height
@@ -92,6 +108,7 @@ fun CropView(
         for (p in listOf(Offset(l, t), Offset(r, t), Offset(l, b), Offset(r, b))) {
             drawCircle(Color.White, handleRadius, p)
         }
+    }
     }
 }
 
